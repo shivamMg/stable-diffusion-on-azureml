@@ -5,24 +5,17 @@ import base64
 import torch
 from io import BytesIO
 import numpy as np
-from omegaconf import OmegaConf
 from PIL import Image
 from einops import rearrange
 from pytorch_lightning import seed_everything
 from torch import autocast
 from contextlib import nullcontext
 
-from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
-
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
-from transformers import AutoFeatureExtractor
+from loader import ModelLoader
 
 
-safety_model_id = "CompVis/stable-diffusion-safety-checker"
-safety_feature_extractor = AutoFeatureExtractor.from_pretrained(safety_model_id)
-safety_checker = StableDiffusionSafetyChecker.from_pretrained(safety_model_id)
 def numpy_to_pil(images):
     """
     Convert a numpy image or a batch of images to a PIL image.
@@ -43,8 +36,8 @@ def load_replacement(x):
     except Exception:
         return x
 def check_safety(x_image):
-    safety_checker_input = safety_feature_extractor(numpy_to_pil(x_image), return_tensors="pt")
-    x_checked_image, has_nsfw_concept = safety_checker(images=x_image, clip_input=safety_checker_input.pixel_values)
+    safety_checker_input = ModelLoader().safety_feature_extractor(numpy_to_pil(x_image), return_tensors="pt")
+    x_checked_image, has_nsfw_concept = ModelLoader().safety_checker(images=x_image, clip_input=safety_checker_input.pixel_values)
     assert x_checked_image.shape[0] == len(has_nsfw_concept)
     for i in range(len(has_nsfw_concept)):
         if has_nsfw_concept[i]:
@@ -52,40 +45,18 @@ def check_safety(x_image):
     return x_checked_image, has_nsfw_concept
 
 
-def load_model_from_config(config, ckpt, verbose=False):
-    print(f"Loading model from {ckpt}")
-    pl_sd = torch.load(ckpt, map_location="cpu")
-    if "global_step" in pl_sd:
-        print(f"Global Step: {pl_sd['global_step']}")
-    sd = pl_sd["state_dict"]
-    model = instantiate_from_config(config.model)
-    m, u = model.load_state_dict(sd, strict=False)
-    if len(m) > 0 and verbose:
-        print("missing keys:")
-        print(m)
-    if len(u) > 0 and verbose:
-        print("unexpected keys:")
-        print(u)
 
-    # TODO: half if not enough vram
-    model.cuda().half()
-
-    model.eval()
-    return model
 
 class Opt:
     pass
 
 def main():
     opt = Opt()
-    model_dir = os.getenv("MODEL_DIR", "models/ldm/stable-diffusion-v1")
 
     opt.seed = 1
-    opt.config = 'configs/stable-diffusion/v1-inference.yaml'
-    opt.ckpt = os.path.join(model_dir, "model.ckpt")
     opt.sampler_name = 'PLMS' or 'DDIM'
     opt.n_samples = 1
-    opt.prompt = 'astronaut riding a horse'
+    opt.prompt = 'A psychedelic space stars nebula, floating in the cosmos nebula retrofuturism, greg rutkowski laurie greasley beksinski artstation, hyperrealist, cinema 4 d, 8 k highly detailed'
     opt.C = 4
     opt.H = 256
     opt.W = 256
@@ -96,17 +67,14 @@ def main():
     opt.ddim_eta = 0.0
     opt.outdir = "outputs/mytxt2img-samples"
     opt.fixed_code = False
+    opt.check_safety = False
     # https://github.com/CompVis/stable-diffusion/issues/218#issuecomment-1241654651
     opt.n_iter = 1
 
     # begin
     seed_everything(opt.seed)
 
-    config = OmegaConf.load(f"{opt.config}")
-    model = load_model_from_config(config, f"{opt.ckpt}")
-
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    model = model.to(device)
+    model = ModelLoader().stable_diffusion
 
     SAMPLER_CLASS = {
         'PLMS': PLMSSampler,
@@ -118,6 +86,7 @@ def main():
     prompt = opt.prompt
     data = [batch_size * [prompt]]
 
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     start_code = None
     if opt.fixed_code:
         start_code = torch.randn([opt.n_samples, opt.C, opt.H // opt.f, opt.W // opt.f], device=device)
@@ -153,7 +122,10 @@ def main():
                         x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
                         x_samples_ddim = x_samples_ddim.cpu().permute(0, 2, 3, 1).numpy()
 
-                        x_checked_image, has_nsfw_concept = check_safety(x_samples_ddim)
+                        if opt.check_safety:
+                            x_checked_image, has_nsfw_concept = check_safety(x_samples_ddim)
+                        else:
+                            x_checked_image = x_samples_ddim
 
                         x_checked_image_torch = torch.from_numpy(x_checked_image).permute(0, 3, 1, 2)
 

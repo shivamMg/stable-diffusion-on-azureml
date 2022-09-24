@@ -1,2 +1,5 @@
 config.json
 .ipynb_checkpoints/
+.cache/
+__pycache__/
+*.py[cod]
