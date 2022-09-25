@@ -1,5 +1,6 @@
 import logging
 import os
+from functools import wraps
 from threading import Event, Thread
 
 import torch
@@ -20,6 +21,15 @@ if MODEL_DIR:
     CKPT_PATH = os.path.join(MODEL_DIR, 'stable-diffusion-v1.ckpt')
 else:
     CKPT_PATH = os.path.join(STABLE_DIFFUSION_DIR, 'models/ldm/stable-diffusion-v1/model.ckpt')
+
+
+def load_models(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not ModelLoader().loaded():
+            return {'error': 'models not loaded yet'}, 503
+        return f(*args, **kwargs)
+    return decorated
 
 
 class ModelLoader(metaclass=Singleton):

@@ -1,3 +1,7 @@
+apispec==5.2.2
+apispec-webframeworks==0.5.2
+flasgger==0.9.5
 flask==2.2.2
 gunicorn==20.1.0
+marshmallow==3.18.0
 pattern-singleton==1.2.0

@@ -1,0 +1,17 @@
+Generate an image using a text prompt
+---
+description: Generate an image using a text prompt
+parameters:
+  - in: body
+    name: body
+    required: True
+    schema:
+      $ref: '#/definitions/Txt2Img'
+security:
+  - ApiKeyAuth: []
+responses:
+  200:
+    description: If generation was successful
+    content:
+      application/json:
+        iterations: string

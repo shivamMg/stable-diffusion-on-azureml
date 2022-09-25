@@ -3,3 +3,5 @@ config.json
 .cache/
 __pycache__/
 *.py[cod]
+outputs/
+.vscode/

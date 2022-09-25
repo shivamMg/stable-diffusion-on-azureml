@@ -45,34 +45,30 @@ def check_safety(x_image):
     return x_checked_image, has_nsfw_concept
 
 
+class Txt2ImgOptions:
+    def __init__(self, prompt, seed=42, sampler_name='PLMS', n_samples=1, n_iter=1, C=4, H=256, W=256, f=8,
+        precision='autocast', scale=7.5, ddim_steps=50, ddim_eta=0.0, outdir='outputs/mytxt2img-samples',
+        fixed_code=False, check_safety=True):
+        self.prompt = prompt
+        self.seed = seed
+        self.sampler_name = sampler_name
+        self.n_samples = n_samples
+        self.n_iter = n_iter  # https://github.com/CompVis/stable-diffusion/issues/218#issuecomment-1241654651
+        self.C = C
+        self.H = H
+        self.W = W
+        self.f = f
+        self.precision = precision  # 'autocast' or 'full'
+        self.scale = scale
+        self.ddim_steps = ddim_steps
+        self.ddim_eta = ddim_eta
+        self.fixed_code = fixed_code
+        self.check_safety = check_safety
+        self.outdir = outdir
+ 
 
-
-class Opt:
-    pass
-
-def main():
-    opt = Opt()
-
-    opt.seed = 1
-    opt.sampler_name = 'PLMS' or 'DDIM'
-    opt.n_samples = 1
-    opt.prompt = 'A psychedelic space stars nebula, floating in the cosmos nebula retrofuturism, greg rutkowski laurie greasley beksinski artstation, hyperrealist, cinema 4 d, 8 k highly detailed'
-    opt.C = 4
-    opt.H = 256
-    opt.W = 256
-    opt.f = 8
-    opt.precision = 'autocast' or 'full'
-    opt.scale = 7.5
-    opt.ddim_steps = 50
-    opt.ddim_eta = 0.0
-    opt.outdir = "outputs/mytxt2img-samples"
-    opt.fixed_code = False
-    opt.check_safety = False
-    # https://github.com/CompVis/stable-diffusion/issues/218#issuecomment-1241654651
-    opt.n_iter = 1
-
-    # begin
-    seed_everything(opt.seed)
+def txt2img(opts: Txt2ImgOptions):
+    seed_everything(opts.seed)
 
     model = ModelLoader().stable_diffusion
 
@@ -80,49 +76,48 @@ def main():
         'PLMS': PLMSSampler,
         'DDIM': DDIMSampler,
     }
-    sampler = SAMPLER_CLASS[opt.sampler_name](model)
+    sampler = SAMPLER_CLASS[opts.sampler_name](model)
 
-    batch_size = opt.n_samples
-    prompt = opt.prompt
+    batch_size = opts.n_samples
+    prompt = opts.prompt
     data = [batch_size * [prompt]]
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     start_code = None
-    if opt.fixed_code:
-        start_code = torch.randn([opt.n_samples, opt.C, opt.H // opt.f, opt.W // opt.f], device=device)
+    if opts.fixed_code:
+        start_code = torch.randn([opts.n_samples, opts.C, opts.H // opts.f, opts.W // opts.f], device=device)
 
-    os.makedirs(opt.outdir, exist_ok=True)
-    sample_path = opt.outdir
-    base_count = len(os.listdir(opt.outdir))
+    os.makedirs(opts.outdir, exist_ok=True)
+    base_count = len(os.listdir(opts.outdir))
 
     result = {'iterations': []}
-    precision_scope = autocast if opt.precision=="autocast" else nullcontext
+    precision_scope = autocast if opts.precision=="autocast" else nullcontext
     with torch.no_grad():
         with precision_scope("cuda"):
             with model.ema_scope():
-                for n in range(opt.n_iter):
+                for n in range(opts.n_iter):
                     iteration = []
                     for prompts in data:
                         uc = None
-                        if opt.scale != 1.0:
+                        if opts.scale != 1.0:
                             uc = model.get_learned_conditioning(batch_size * [""])
                         c = model.get_learned_conditioning(prompts)
-                        shape = [opt.C, opt.H // opt.f, opt.W // opt.f]
-                        samples_ddim, _ = sampler.sample(S=opt.ddim_steps,
+                        shape = [opts.C, opts.H // opts.f, opts.W // opts.f]
+                        samples_ddim, _ = sampler.sample(S=opts.ddim_steps,
                                                             conditioning=c,
-                                                            batch_size=opt.n_samples,
+                                                            batch_size=opts.n_samples,
                                                             shape=shape,
                                                             verbose=False,
-                                                            unconditional_guidance_scale=opt.scale,
+                                                            unconditional_guidance_scale=opts.scale,
                                                             unconditional_conditioning=uc,
-                                                            eta=opt.ddim_eta,
+                                                            eta=opts.ddim_eta,
                                                             x_T=start_code)
 
                         x_samples_ddim = model.decode_first_stage(samples_ddim)
                         x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
                         x_samples_ddim = x_samples_ddim.cpu().permute(0, 2, 3, 1).numpy()
 
-                        if opt.check_safety:
+                        if opts.check_safety:
                             x_checked_image, has_nsfw_concept = check_safety(x_samples_ddim)
                         else:
                             x_checked_image = x_samples_ddim
@@ -150,4 +145,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    txt2img()
