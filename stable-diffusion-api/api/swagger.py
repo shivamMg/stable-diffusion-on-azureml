@@ -4,7 +4,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
 from marshmallow.exceptions import ValidationError
 
-from schemas import Txt2ImgSchema
+from schemas import Txt2ImgInput
 
 
 def init_swagger(app: Flask):
@@ -19,9 +19,25 @@ def init_swagger(app: Flask):
     )
     template = spec.to_flasgger(
         app,
-        definitions=[('Txt2Img', Txt2ImgSchema)],
+        definitions=[('Txt2ImgInput', Txt2ImgInput)],
     )
-    Swagger(app, template=template)
+    config = {
+        "headers": [
+        ],
+        "specs": [
+            {
+                "endpoint": 'swagger',
+                "route": '/swagger.json',
+                "rule_filter": lambda rule: True,  # all in
+                "model_filter": lambda tag: True,  # all in
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        # "static_folder": "static",  # must be set by user
+        "swagger_ui": True,
+        "specs_route": "/swagger/",
+    }
+    Swagger(app, template=template, config=config)
 
     app.register_error_handler(ValidationError, handle_validation_error)
 

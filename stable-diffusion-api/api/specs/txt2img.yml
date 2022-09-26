@@ -1,17 +1,35 @@
 Generate an image using a text prompt
 ---
+operationId: txt2img
 description: Generate an image using a text prompt
+definitions:
+  Txt2ImgOutput:
+    type: object
+    properties:
+      iterations:
+        type: array
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              image:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  base64:
+                    type: string
 parameters:
   - in: body
     name: body
     required: True
     schema:
-      $ref: '#/definitions/Txt2Img'
+      $ref: '#/definitions/Txt2ImgInput'
 security:
   - ApiKeyAuth: []
 responses:
   200:
     description: If generation was successful
-    content:
-      application/json:
-        iterations: string
+    schema:
+      $ref: '#/definitions/Txt2ImgOutput'

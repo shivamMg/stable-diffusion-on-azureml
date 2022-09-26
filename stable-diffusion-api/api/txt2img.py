@@ -46,7 +46,7 @@ def check_safety(x_image):
 
 
 class Txt2ImgOptions:
-    def __init__(self, prompt, seed=42, sampler_name='PLMS', n_samples=1, n_iter=1, C=4, H=256, W=256, f=8,
+    def __init__(self, prompt, seed=42, sampler_name='PLMS', n_samples=1, n_iter=1, C=4, H=512, W=512, f=8,
         precision='autocast', scale=7.5, ddim_steps=50, ddim_eta=0.0, outdir='outputs/mytxt2img-samples',
         fixed_code=False, check_safety=True):
         self.prompt = prompt
@@ -136,7 +136,7 @@ def txt2img(opts: Txt2ImgOptions):
 
                             iteration.append({'image': {
                                 'type': 'BASE64',
-                                'base64': b64.decode('ascii'),
+                                'base64': b64.decode('utf-8'),
                             }})
 
                             base_count += 1

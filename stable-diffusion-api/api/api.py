@@ -4,7 +4,7 @@ from flask import Flask, request
 from flasgger import swag_from
 
 from loader import ModelLoader, load_models
-from schemas import Txt2ImgSchema
+from schemas import Txt2ImgInput
 from swagger import init_swagger
 from txt2img import txt2img, Txt2ImgOptions
 
@@ -14,9 +14,13 @@ app.logger.setLevel(logging.INFO)
 ModelLoader.logger = app.logger
 init_swagger(app)
 
+
 @app.before_request
 def log_request():
-    app.logger.info('Incoming request: %s', request.json)
+    app.logger.info('Incoming request: %s %s', request.method, request.path)
+    if request.get_json(silent=True):
+        app.logger.info('Request body: %s', request.json)
+
 
 @app.after_request
 def log_response(response):
@@ -28,7 +32,7 @@ def log_response(response):
 @load_models
 @swag_from('./specs/txt2img.yml')
 def txt2img_api():
-    opts = Txt2ImgSchema().load(request.json)
+    opts = Txt2ImgInput().load(request.json)
     app.logger.info('Serialized options: %s', opts)
     result = txt2img(Txt2ImgOptions(**opts))
     return result

@@ -10,6 +10,14 @@ As the maintainer of this project, please make a few updates:
 - Understanding the security reporting process in SECURITY.MD
 - Remove this section from the README
 
+## Swagger Codegen
+
+```
+curl http://localhost:5000/swagger.json -o clients/swagger.json
+rm -rf clients/python
+docker run --rm -v ${PWD}/clients:/output swaggerapi/swagger-codegen-cli generate -i /output/swagger.json -l python -o /output/python
+```
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
