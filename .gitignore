@@ -5,3 +5,4 @@ __pycache__/
 *.py[cod]
 outputs/
 .vscode/
+online-endpoint-key.txt
