@@ -6,3 +6,5 @@ __pycache__/
 outputs/
 .vscode/
 online-endpoint-key.txt
+stable-diffusion-v1.ckpt
+online-endpoint.json
